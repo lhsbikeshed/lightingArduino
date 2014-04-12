@@ -1,6 +1,6 @@
 #include <FastSPI_LED.h>
 
-#define NUM_LEDS 60
+#define NUM_LEDS 61
 
 //brightness modifiers
 #define LIGHTS_OFF      0
@@ -15,6 +15,9 @@
 #define MODE_REDALERT 1
 #define MODE_WARP     2
 #define MODE_BRIEF    3
+
+#define SEATBELT   60
+#define PRAY       59
 // Sometimes chipsets wire in a backwards sort of way
 //struct CRGB { unsigned char b; unsigned char r; unsigned char g; };
 struct CRGB { 
@@ -45,7 +48,7 @@ left
 byte leftLeds[] = {
   0,1,2,3,4,5,6,7,8,9,10,21,22,23,24,25,26,27,28,29,30,40,41,42,43,44,45,46,47,48,49}; // 31
 byte rightLeds[] = {
-  20,19,18,17,16,15,14,13,12,11,39,38,37,36,35,34,33,32,31,60,59,58,57,56,55,54,53,52,51,59}; // 30
+  20,19,18,17,16,15,14,13,12,11,39,38,37,36,35,34,33,32,31,60,58,57,56,55,54,53,52,51}; // 29
 
 
 boolean cabinState = false;
@@ -68,6 +71,9 @@ byte mode = MODE_IDLE;
 long flickerTimeOut = 0;
 long flickRand = 0;
 boolean flickerToggle = false;
+
+boolean prayLight = false;
+boolean seatbeltLight = false;
 
 
 void setup()
@@ -281,7 +287,39 @@ void loop() {
     else if (c == 'i'){
       //idle
       mode = MODE_IDLE;
+    } 
+    else if (c == 'S'){
+      seatbeltLight = true;
+    } 
+    else if (c == 's'){
+      seatbeltLight = false;
+    } 
+    else if (c == 'P'){
+      prayLight = true;
+    } 
+    else if (c == 'p'){
+      prayLight = false;
     }
+  }
+  if(seatbeltLight){
+    leds[SEATBELT].r = 255;
+    leds  [SEATBELT].g = 255;
+    leds[SEATBELT].b = 255;
+  } 
+  else {
+    leds[SEATBELT].r = 0;
+    leds  [SEATBELT].g = 0;
+    leds[SEATBELT].b = 0;
+  }
+  if(prayLight){
+    leds[PRAY].r = 255;
+    leds[PRAY].g = 255;
+    leds[PRAY].b = 255;
+  } 
+  else {
+    leds[PRAY].r = 0;
+    leds[PRAY].g = 0;
+    leds[PRAY].b = 0;
   }
 
   //redAlert();
@@ -353,6 +391,7 @@ void redAlert(){
 
 
 }
+
 
 
 
