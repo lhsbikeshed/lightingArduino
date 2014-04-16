@@ -18,6 +18,8 @@
 
 #define SEATBELT   60
 #define PRAY       59
+
+#define MAX_BRIGHT  30
 // Sometimes chipsets wire in a backwards sort of way
 //struct CRGB { unsigned char b; unsigned char r; unsigned char g; };
 struct CRGB { 
@@ -118,7 +120,7 @@ void loop() {
     if(mode == MODE_IDLE){
       baseCol.r = 0;
       baseCol.g = 0;
-      baseCol.b = 128;
+      baseCol.b = MAX_BRIGHT ;
     } 
     else if (mode == MODE_REDALERT){
 
@@ -133,12 +135,12 @@ void loop() {
     else if (mode == MODE_WARP){
       baseCol.r = 0;
       baseCol.g = 0;
-      baseCol.b = 255;
+      baseCol.b = MAX_BRIGHT ;
     } 
     else if (mode == MODE_BRIEF){
       baseCol.r = 255;
-      baseCol.g = 255;
-      baseCol.b = 255;
+      baseCol.g = 255 ;
+      baseCol.b = 255 ;
     }
   } 
   else {
