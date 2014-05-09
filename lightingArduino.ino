@@ -1,4 +1,4 @@
-#include <FastSPI_LED.h>
+#include <FastLED.h>
 
 #define NUM_LEDS 61
 
@@ -20,38 +20,16 @@
 #define PRAY       59
 
 #define MAX_BRIGHT  30
-// Sometimes chipsets wire in a backwards sort of way
-//struct CRGB { unsigned char b; unsigned char r; unsigned char g; };
-struct CRGB { 
-  unsigned char r; 
-  unsigned char g; 
-  unsigned char b; 
-};
-struct CRGB *leds;
+
+#define NUM_LEDS 99
+
+CRGB right_effect[99];
+CRGB left_effect[99];
 
 CRGB baseCol;
 
 int sinCount = 0;
 long lastWarpUpdate = 0;
-
-/*
-left
- back -> front
- 0 - 10 
- 21 - 30
- 40 -> 49
- 
- 
- right
- 20 -> 11
- 31 -> 39
- 50 -> 60
- */
-byte leftLeds[] = {
-  0,1,2,3,4,5,6,7,8,9,10,21,22,23,24,25,26,27,28,29,30,40,41,42,43,44,45,46,47,48,49}; // 31
-byte rightLeds[] = {
-  20,19,18,17,16,15,14,13,12,11,39,38,37,36,35,34,33,32,31,60,58,57,56,55,54,53,52,51}; // 29
-
 
 boolean cabinState = false;
 
@@ -80,23 +58,11 @@ boolean seatbeltLight = false;
 
 void setup()
 {
-  FastSPI_LED.setLeds(NUM_LEDS);
-
-  FastSPI_LED.setChipset(CFastSPI_LED::SPI_LPD6803);
-
-
-  FastSPI_LED.init();
-  FastSPI_LED.start();
-
-  leds = (struct CRGB*)FastSPI_LED.getRGBData(); 
-  memset(leds, 0, NUM_LEDS * 3);
-  for(int i = 0 ; i < NUM_LEDS; i++ ) {
-
-    leds[i].r = 0; 
-    leds[i].g = 0; 
-    leds[i].b = 0; 
-  }
   Serial.begin(9600);
+  FastLED.addLeds<WS2811, 13, GRB>(left_effect, 99); 
+  FastLED.addLeds<WS2811, 11, GRB>(right_effect, 99); 
+  general_lighting(CRGB::Black);
+  FastLED.show();
   baseCol.r = 0;
   baseCol.g = 0;
   baseCol.b = 0;
@@ -118,51 +84,32 @@ void loop() {
     cabinState = true;
 
     if(mode == MODE_IDLE){
-      baseCol.r = 0;
-      baseCol.g = 0;
-      baseCol.b = MAX_BRIGHT ;
-    } 
-    else if (mode == MODE_REDALERT){
-
+      baseCol = CRGB(0, 0, MAX_BRIGHT);
+    } else if (mode == MODE_REDALERT){
       if(redAlertTimer + 800 < millis()){
         redToggle = !redToggle;
         redAlertTimer = millis();
       }
-      baseCol.r = redToggle == true ? 128 : 0;
-      baseCol.g = 0;
-      baseCol.b = 0;
-    } 
-    else if (mode == MODE_WARP){
-      baseCol.r = 0;
-      baseCol.g = 0;
-      baseCol.b = MAX_BRIGHT ;
-    } 
-    else if (mode == MODE_BRIEF){
-      baseCol.r = 255;
-      baseCol.g = 255 ;
-      baseCol.b = 255 ;
+      baseCol = CRGB(redToggle == true ? 128 : 0, 0, 0);
+    } else if (mode == MODE_WARP){
+      baseCol = CRGB(0, 0, MAX_BRIGHT);
+    } else if (mode == MODE_BRIEF){
+      baseCol = CRGB::White;
     }
   } 
   else {
     cabinState = false;
-    baseCol.r = 0;
-    baseCol.g = 0;
-    baseCol.b = 0;
+    baseCol = CRGB::Black;
   }
-
 
   //effects
   if(effect == EFFECT_HEARTBEAT){
     if(heartBeatTimer + 400 < millis() && heartBeat){
-
       heartBeat = false;
       effect = EFFECT_NONE;
     } 
     else {
-
-      baseCol.r = 0;
-      baseCol.g = 0;
-      baseCol.b = 0;
+      baseCol = CRGB::Black;
       cabinState = false;
     }
 
@@ -181,131 +128,21 @@ void loop() {
       baseCol.r = (int)baseCol.r * rand;
       baseCol.g = (int)baseCol.g * rand;
       baseCol.b = (int)baseCol.b * rand;
-
-
-      // if(random(100) < 25){
       cabinState = flickerToggle;
-      //}
-
     }
 
   }
   if(mode == MODE_WARP){
-    //apply sin wave over the top of the base colour
-    if(lastWarpUpdate + 25 < millis()){
-      sinCount ++;
-      sinCount %= 628;
-      lastWarpUpdate = millis();
-    }
-    for(int i = 0 ; i < 10; i++){
-      //left eds
-      float sinMod = sin(sinCount / 3 + i);
-      byte ledIndex = leftLeds[i];
-      if(sinMod < 0){ 
-        sinMod = 0; 
-      }
-      leds[ledIndex].r = (int)(baseCol.r * sinMod); 
-      leds[ledIndex].g = (int)(baseCol.g * sinMod); 
-      leds[ledIndex].b = (int)(baseCol.b * sinMod); 
-      ledIndex = leftLeds[i+10];
-      leds[ledIndex].r = (int)(baseCol.r * sinMod); 
-      leds[ledIndex].g = (int)(baseCol.g * sinMod); 
-      leds[ledIndex].b = (int)(baseCol.b * sinMod); 
-      ledIndex = leftLeds[i+20];
-      leds[ledIndex].r = (int)(baseCol.r * sinMod); 
-      leds[ledIndex].g = (int)(baseCol.g * sinMod); 
-      leds[ledIndex].b = (int)(baseCol.b * sinMod); 
-
-    }
-    for(int i = 0 ; i < 10; i++){
-      //left eds
-      float sinMod = sin(sinCount / 3 + i);
-      byte ledIndex = rightLeds[i];
-      if(sinMod < 0){ 
-        sinMod = 0; 
-      }
-      leds[ledIndex].r = (int)(baseCol.r * sinMod); 
-      leds[ledIndex].g = (int)(baseCol.g * sinMod); 
-      leds[ledIndex].b = (int)(baseCol.b * sinMod); 
-      ledIndex = rightLeds[i+10];
-      leds[ledIndex].r = (int)(baseCol.r * sinMod); 
-      leds[ledIndex].g = (int)(baseCol.g * sinMod); 
-      leds[ledIndex].b = (int)(baseCol.b * sinMod); 
-      ledIndex = rightLeds[i+20];
-      leds[ledIndex].r = (int)(baseCol.r * sinMod); 
-      leds[ledIndex].g = (int)(baseCol.g * sinMod); 
-      leds[ledIndex].b = (int)(baseCol.b * sinMod);
-    }
-
+    warp();
   } 
   else {
-    for(int i = 0 ; i < NUM_LEDS; i++ ) {
-
-      leds[i].r = baseCol.r; 
-      leds[i].g = baseCol.g; 
-      leds[i].b = baseCol.b; 
-    }
+    general_lighting(baseCol);
   }
   cabinLightState (cabinState);
-
-
-  if(Serial.available() > 0){
-    char c = Serial.read();
-    if(c == 'k'){        //kill
-      state = LIGHTS_OFF;
-    } 
-    else if (c == 'o'){   //on
-      state = LIGHTS_ON;
-    } 
-    else if (c == 'r'){  //red alert
-      mode = MODE_REDALERT;
-    } 
-    else if (c == 'w'){
-      mode = MODE_WARP;
-    } 
-    else if (c == 'd'){
-      damageTimer = millis();
-      flickerTimeOut = millis();
-
-      damageOn = true;
-      effect = EFFECT_DAMAGE;
-    } 
-    else if(c == 'h'){
-      effect = EFFECT_HEARTBEAT;
-      heartBeatTimer = millis();
-      heartBeat = true;
-
-    } 
-    else if (c == 'b'){
-      //reset
-      mode = MODE_BRIEF;
-    }
-    else if (c == 'R'){
-      //reset
-      mode = MODE_IDLE;
-      effect = EFFECT_NONE;
-      state = LIGHTS_OFF;
-    } 
-    else if (c == 'i'){
-      //idle
-      mode = MODE_IDLE;
-    } 
-    else if (c == 'S'){
-      seatbeltLight = true;
-    } 
-    else if (c == 's'){
-      seatbeltLight = false;
-    } 
-    else if (c == 'P'){
-      prayLight = true;
-    } 
-    else if (c == 'p'){
-      prayLight = false;
-    }
-  }
+  /*
   if(seatbeltLight){
     leds[SEATBELT].r = 255;
-    leds  [SEATBELT].g = 255;
+    leds[SEATBELT].g = 255;
     leds[SEATBELT].b = 255;
   } 
   else {
@@ -323,33 +160,27 @@ void loop() {
     leds[PRAY].g = 0;
     leds[PRAY].b = 0;
   }
+  */
+  handleSerialCommands();
+  FastLED.show();
+}
 
-  //redAlert();
-  FastSPI_LED.show();
-  //delay(10);
-
-
+void general_lighting(CRGB colour) {
+  for(int i = 0 ; i < NUM_LEDS; i++ ) {
+    left_effect[i] = colour;
+    right_effect[i] = colour;
+  }
 }
 
 void on(){
-  for(int i = 0 ; i < NUM_LEDS; i++ ) {
-
-    leds[i].r = 0; 
-    leds[i].g = 0; 
-    leds[i].b = 128; 
-  }
+  general_lighting(CRGB::Blue);
   cabinLightState(true);
 
 }
 
 void damage(){
   unsigned char c = random(255);
-  for(int i = 0 ; i < NUM_LEDS; i++ ) {
-
-    leds[i].r = 0; 
-    leds[i].g = 0; 
-    leds[i].b = c; 
-  }
+  general_lighting(CRGB(0,0,c));
   if(random(10) < 5){
     cabinLightState(false);
   } 
@@ -360,16 +191,9 @@ void damage(){
 }
 
 void kill(){
-  for(int i = 0 ; i < NUM_LEDS; i++ ) {
-
-    leds[i].r = 0; 
-    leds[i].g = 0; 
-    leds[i].b = 0; 
-  }
+  general_lighting(CRGB::Black);
   cabinLightState(false);
-
 }
-
 
 void redAlert(){
   unsigned char red = 0;
@@ -382,23 +206,91 @@ void redAlert(){
     else {
       red = 0;
     }
-    for(int i = 0 ; i < NUM_LEDS; i++ ) {
-
-      leds[i].r = red; 
-      leds[i].g = 0; 
-      leds[i].b = 0; 
-    }
+    general_lighting(CRGB(red, 0, 0));
   }
   cabinLightState(true);
-
-
 }
 
+void warp(){
+      //apply sin wave over the top of the base colour
+    if(lastWarpUpdate + 25 < millis()){
+      sinCount ++;
+      sinCount %= 628;
+      lastWarpUpdate = millis();
+    }
+    for(int i = 0; i < NUM_LEDS; i++){
+      float sinMod = sin(sinCount / 3 + i);
+      if(sinMod < 0){ 
+        sinMod = 0; 
+      }
+      CRGB colour = CRGB((int)(baseCol.r * sinMod), (int)(baseCol.g * sinMod), (int)(baseCol.b * sinMod));
+      left_effect[i] = colour;
+      right_effect[i] = colour;
+    }
+}
 
+void handleSerialCommands(){
+  if(Serial.available() == 0){
+     return;
+  }
+  char c = Serial.read();
+  switch (c) {
+    case 'k':
+      state = LIGHTS_OFF;
+      break;
+    case 'o':
+      state = LIGHTS_ON;
+      break;
+    case 'r':
+      mode = MODE_REDALERT;
+      break;
+    case 'w':
+      mode = MODE_WARP;
+      break;
+    case 'd':
+      damageTimer = millis();
+      flickerTimeOut = millis();
 
-
-
-
+      damageOn = true;
+      effect = EFFECT_DAMAGE;
+      break;
+    case 'h':
+      effect = EFFECT_HEARTBEAT;
+      heartBeatTimer = millis();
+      heartBeat = true;
+      break;
+    case 'b':
+      mode = MODE_BRIEF;
+      break;
+    case 'R':
+      mode = MODE_IDLE;
+      effect = EFFECT_NONE;
+      state = LIGHTS_OFF;
+      break;
+    case 'i':
+      mode = MODE_IDLE;
+      break;
+    case 'S':
+      seatbeltLight = true;
+      break; 
+    case 's':
+      seatbeltLight = false;
+      break;
+    case 'P': 
+      prayLight = true;
+      break;
+    case 'p':
+      prayLight = false;
+      break;
+    case '\n':
+    case '\r':
+      return;
+    default:
+      Serial.write("Unknown,");
+      return;
+  }
+  Serial.write("OK,");
+}
 
 
 
