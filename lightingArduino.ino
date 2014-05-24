@@ -23,6 +23,8 @@
 
 #define NUM_LEDS 99
 
+#define PIN_AIRLOCK  15
+
 CRGB right_effect[99];
 CRGB left_effect[99];
 
@@ -40,6 +42,10 @@ boolean redToggle = false;
 long damageTimer = 0;
 boolean damageOn = false;
 long nextDamageFlicker = 500;
+
+boolean airlockBlink = false;
+boolean airlockLight = false;
+long airlockBlinkTime = 0;
 
 boolean heartBeat = false;
 long heartBeatTimer = 0;
@@ -69,6 +75,9 @@ void setup()
   for (int i = 0; i < 4; i++){
     pinMode(19 - i, OUTPUT);
   }
+  pinMode(PIN_AIRLOCK, OUTPUT);
+  digitalWrite(PIN_AIRLOCK, LOW);
+  
 
   cabinLightState(false);
 }
@@ -100,6 +109,7 @@ void loop() {
   else {
     cabinState = false;
     baseCol = CRGB::Black;
+    airlockLight = false;
   }
 
   //effects
@@ -139,6 +149,13 @@ void loop() {
     general_lighting(baseCol);
   }
   cabinLightState (cabinState);
+  if(airlockBlink && airlockBlinkTime + 500 < millis()){
+    airlockLight = ! airlockLight;
+    airlockBlinkTime = millis();
+  }
+  digitalWrite(PIN_AIRLOCK, airlockLight == true ? HIGH : LOW );
+  
+  
   /*
   if(seatbeltLight){
     leds[SEATBELT].r = 255;
@@ -193,6 +210,8 @@ void damage(){
 void kill(){
   general_lighting(CRGB::Black);
   cabinLightState(false);
+  airlockLight = false;
+  airlockBlink = false;
 }
 
 void redAlert(){
@@ -237,6 +256,8 @@ void handleSerialCommands(){
   switch (c) {
     case 'k':
       state = LIGHTS_OFF;
+      airlockBlink = false;
+      airlockLight = false;
       break;
     case 'o':
       state = LIGHTS_ON;
@@ -281,6 +302,14 @@ void handleSerialCommands(){
       break;
     case 'p':
       prayLight = false;
+      break;
+    case 'A':  //airlock light
+      airlockBlink = true;
+      airlockLight = true;
+      break;
+    case 'a':
+      airlockBlink = false;
+      airlockLight = false;
       break;
     case '\n':
     case '\r':
