@@ -16,8 +16,8 @@
 #define MODE_WARP     2
 #define MODE_BRIEF    3
 
-#define SEATBELT   60
-#define PRAY       59
+#define SEATBELT   0
+#define PRAY       1
 
 #define MAX_BRIGHT  30
 
@@ -27,6 +27,8 @@
 
 CRGB right_effect[99];
 CRGB left_effect[99];
+
+CRGB praySeatLights[2];  //first 3 are the front cabin light that isnt in use yet
 
 CRGB baseCol;
 
@@ -68,16 +70,25 @@ void setup()
   FastLED.addLeds<WS2811, 13, GRB>(left_effect, 99); 
   FastLED.addLeds<WS2811, 11, GRB>(right_effect, 99); 
   general_lighting(CRGB::Black);
-  FastLED.show();
+  
   baseCol.r = 0;
   baseCol.g = 0;
   baseCol.b = 0;
+
+  for (int i = 0; i < 2; i++){
+    praySeatLights[i].r = 0;
+    praySeatLights[i].g = 0;
+    praySeatLights[i].b = 0;
+  }
+  FastLED.addLeds<WS2811, 8, GRB>(praySeatLights, 2); 
+  FastLED.show();
+  
   for (int i = 0; i < 4; i++){
     pinMode(19 - i, OUTPUT);
   }
   pinMode(PIN_AIRLOCK, OUTPUT);
   digitalWrite(PIN_AIRLOCK, LOW);
-  
+
 
   cabinLightState(false);
 }
@@ -94,15 +105,18 @@ void loop() {
 
     if(mode == MODE_IDLE){
       baseCol = CRGB(0, 0, MAX_BRIGHT);
-    } else if (mode == MODE_REDALERT){
+    } 
+    else if (mode == MODE_REDALERT){
       if(redAlertTimer + 800 < millis()){
         redToggle = !redToggle;
         redAlertTimer = millis();
       }
       baseCol = CRGB(redToggle == true ? 128 : 0, 0, 0);
-    } else if (mode == MODE_WARP){
+    } 
+    else if (mode == MODE_WARP){
       baseCol = CRGB(0, 0, MAX_BRIGHT);
-    } else if (mode == MODE_BRIEF){
+    } 
+    else if (mode == MODE_BRIEF){
       baseCol = CRGB::White;
     }
   } 
@@ -154,30 +168,30 @@ void loop() {
     airlockBlinkTime = millis();
   }
   digitalWrite(PIN_AIRLOCK, airlockLight == true ? HIGH : LOW );
-  
-  
-  /*
+
+
+
   if(seatbeltLight){
-    leds[SEATBELT].r = 255;
-    leds[SEATBELT].g = 255;
-    leds[SEATBELT].b = 255;
+    praySeatLights[SEATBELT].r = 255;
+    praySeatLights[SEATBELT].g = 255;
+    praySeatLights[SEATBELT].b = 255;
   } 
   else {
-    leds[SEATBELT].r = 0;
-    leds  [SEATBELT].g = 0;
-    leds[SEATBELT].b = 0;
+    praySeatLights[SEATBELT].r = 0;
+    praySeatLights[SEATBELT].g = 0;
+    praySeatLights[SEATBELT].b = 0;
   }
   if(prayLight){
-    leds[PRAY].r = 255;
-    leds[PRAY].g = 255;
-    leds[PRAY].b = 255;
+    praySeatLights[PRAY].r = 255;
+    praySeatLights[PRAY].g = 255;
+    praySeatLights[PRAY].b = 255;
   } 
   else {
-    leds[PRAY].r = 0;
-    leds[PRAY].g = 0;
-    leds[PRAY].b = 0;
+    praySeatLights[PRAY].r = 0;
+    praySeatLights[PRAY].g = 0;
+    praySeatLights[PRAY].b = 0;
   }
-  */
+
   handleSerialCommands();
   FastLED.show();
 }
@@ -231,95 +245,99 @@ void redAlert(){
 }
 
 void warp(){
-      //apply sin wave over the top of the base colour
-    if(lastWarpUpdate + 25 < millis()){
-      sinCount ++;
-      sinCount %= 628;
-      lastWarpUpdate = millis();
+  //apply sin wave over the top of the base colour
+  if(lastWarpUpdate + 25 < millis()){
+    sinCount ++;
+    sinCount %= 628;
+    lastWarpUpdate = millis();
+  }
+  for(int i = 0; i < NUM_LEDS; i++){
+    float sinMod = sin(sinCount / 3 + i);
+    if(sinMod < 0){ 
+      sinMod = 0; 
     }
-    for(int i = 0; i < NUM_LEDS; i++){
-      float sinMod = sin(sinCount / 3 + i);
-      if(sinMod < 0){ 
-        sinMod = 0; 
-      }
-      CRGB colour = CRGB((int)(baseCol.r * sinMod), (int)(baseCol.g * sinMod), (int)(baseCol.b * sinMod));
-      left_effect[i] = colour;
-      right_effect[i] = colour;
-    }
+    CRGB colour = CRGB((int)(baseCol.r * sinMod), (int)(baseCol.g * sinMod), (int)(baseCol.b * sinMod));
+    left_effect[i] = colour;
+    right_effect[i] = colour;
+  }
 }
 
 void handleSerialCommands(){
   if(Serial.available() == 0){
-     return;
+    return;
   }
   char c = Serial.read();
   switch (c) {
-    case 'k':
-      state = LIGHTS_OFF;
-      airlockBlink = false;
-      airlockLight = false;
-      break;
-    case 'o':
-      state = LIGHTS_ON;
-      break;
-    case 'r':
-      mode = MODE_REDALERT;
-      break;
-    case 'w':
-      mode = MODE_WARP;
-      break;
-    case 'd':
-      damageTimer = millis();
-      flickerTimeOut = millis();
+  case 'k':
+    state = LIGHTS_OFF;
+    airlockBlink = false;
+    airlockLight = false;
+    break;
+  case 'o':
+    state = LIGHTS_ON;
+    break;
+  case 'r':
+    mode = MODE_REDALERT;
+    break;
+  case 'w':
+    mode = MODE_WARP;
+    break;
+  case 'd':
+    damageTimer = millis();
+    flickerTimeOut = millis();
 
-      damageOn = true;
-      effect = EFFECT_DAMAGE;
-      break;
-    case 'h':
-      effect = EFFECT_HEARTBEAT;
-      heartBeatTimer = millis();
-      heartBeat = true;
-      break;
-    case 'b':
-      mode = MODE_BRIEF;
-      break;
-    case 'R':
-      mode = MODE_IDLE;
-      effect = EFFECT_NONE;
-      state = LIGHTS_OFF;
-      break;
-    case 'i':
-      mode = MODE_IDLE;
-      break;
-    case 'S':
-      seatbeltLight = true;
-      break; 
-    case 's':
-      seatbeltLight = false;
-      break;
-    case 'P': 
-      prayLight = true;
-      break;
-    case 'p':
-      prayLight = false;
-      break;
-    case 'A':  //airlock light
-      airlockBlink = true;
-      airlockLight = true;
-      break;
-    case 'a':
-      airlockBlink = false;
-      airlockLight = false;
-      break;
-    case '\n':
-    case '\r':
-      return;
-    default:
-      Serial.write("Unknown,");
-      return;
+    damageOn = true;
+    effect = EFFECT_DAMAGE;
+    break;
+  case 'h':
+    effect = EFFECT_HEARTBEAT;
+    heartBeatTimer = millis();
+    heartBeat = true;
+    break;
+  case 'b':
+    mode = MODE_BRIEF;
+    break;
+  case 'R':
+    mode = MODE_IDLE;
+    effect = EFFECT_NONE;
+    state = LIGHTS_OFF;
+    break;
+  case 'i':
+    mode = MODE_IDLE;
+    break;
+  case 'S':
+    seatbeltLight = true;
+    break; 
+  case 's':
+    seatbeltLight = false;
+    break;
+  case 'P': 
+    prayLight = true;
+    break;
+  case 'p':
+    prayLight = false;
+    break;
+  case 'A':  //airlock light
+    airlockBlink = true;
+    airlockLight = true;
+    break;
+  case 'a':
+    airlockBlink = false;
+    airlockLight = false;
+    break;
+  case '\n':
+  case '\r':
+    return;
+  default:
+    Serial.write("Unknown,");
+    return;
   }
   Serial.write("OK,");
 }
+
+
+
+
 
 
 
